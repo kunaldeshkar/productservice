@@ -1,58 +1,102 @@
 package com.dev.scaler.productservice.services;
 
-import com.dev.scaler.productservice.dtos.FakeStoreProductDTO;
+import com.dev.scaler.productservice.client.fakestore.FakeStoreClient;
+import com.dev.scaler.productservice.client.fakestore.dto.FakeStoreProductDTO;
+import com.dev.scaler.productservice.client.fakestore.dto.FakeStoreProductRequestDTO;
+import com.dev.scaler.productservice.exceptions.NotFoundException;
 import com.dev.scaler.productservice.models.Category;
 import com.dev.scaler.productservice.models.Product;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Optional;
 
 @Service
-public class FakeStoreProductService implements ProductService{
-   private RestTemplate restTemplate;
+public class FakeStoreProductService implements ProductService {
+    private FakeStoreClient fakeStoreClient;
 
-   public FakeStoreProductService(RestTemplate restTemplate){
-       this.restTemplate = restTemplate;
-   }
+    public FakeStoreProductService(FakeStoreClient fakeStoreClient) {
+        this.fakeStoreClient = fakeStoreClient;
+    }
+
     @Override
-    public Product getProductById(Long id) {
+    public Product getProductById(Long id) throws NotFoundException {
         // call Fake Store API to get product with given ID
-        FakeStoreProductDTO fakeStoreProductDTO = restTemplate.getForObject("https://fakestoreapi.com/products/"+id, FakeStoreProductDTO.class);
+        Optional<FakeStoreProductDTO> optional = fakeStoreClient.getProductById(id);
 
         // Convert FakeStoreProductDTO to Product
-        if(fakeStoreProductDTO != null)
-            return convertFakeStoreDTOToProduct(fakeStoreProductDTO);
-
-        return null;
+        return optional.map(this::convertFakeStoreDTOToProduct)
+                .orElseThrow(() -> new NotFoundException("No Product found with given id."));
     }
 
     @Override
     public List<Product> getAllProducts() {
-        FakeStoreProductDTO[] fakeStoreProductDTOS = restTemplate.getForObject("https://fakestoreapi.com/products", FakeStoreProductDTO[].class);
+        Optional<FakeStoreProductDTO[]> optional = fakeStoreClient.getAllProducts();
 
-        List<Product> products = null;
-        if (fakeStoreProductDTOS != null){
-             products = Arrays.stream(fakeStoreProductDTOS).map(this::convertFakeStoreDTOToProduct)
-                    .collect(Collectors.toList());
-        }
-        return products;
+        return optional.map(fakeStoreProductDTOS -> Arrays.stream(fakeStoreProductDTOS)
+                .map(this::convertFakeStoreDTOToProduct)
+                .toList()).orElse(null);
     }
 
-    private Product convertFakeStoreDTOToProduct(FakeStoreProductDTO fakeStoreProductDTO){
-       Product product = new Product();
-       product.setId(fakeStoreProductDTO.getId());
-       product.setTitle(fakeStoreProductDTO.getTitle());
-       product.setPrice(fakeStoreProductDTO.getPrice());
-       product.setImage(fakeStoreProductDTO.getImage());
-       product.setDescription(fakeStoreProductDTO.getDescription());
+    @Override
+    public Product updateProduct(Long id, Product product) {
+        FakeStoreProductRequestDTO fakeStoreProductRequestDTO = convertProductToFakeStoreProductRequestDTO(product);
+        Optional<FakeStoreProductDTO> optional = fakeStoreClient.updateProduct(id, fakeStoreProductRequestDTO);
+        return optional.map(this::convertFakeStoreDTOToProduct)
+                .orElse(null);
+    }
 
-       Category category = new Category();
-       category.setDescription(fakeStoreProductDTO.getCategory());
-       product.setCategory(category);
+    @Override
+    public Product createProduct(Product product) {
+        FakeStoreProductRequestDTO fakeStoreProductRequestDTO = convertProductToFakeStoreProductRequestDTO(product);
+        Optional<FakeStoreProductDTO> optional = fakeStoreClient.createProduct(fakeStoreProductRequestDTO);
+        return optional.map(this::convertFakeStoreDTOToProduct)
+                .orElse(null);
+    }
 
-       return product;
+    @Override
+    public Product deleteProduct(Long id) {
+        Optional<FakeStoreProductDTO> optional = fakeStoreClient.deleteProduct(id);
+        return optional.map(this::convertFakeStoreDTOToProduct)
+                .orElse(null);
+    }
+
+    private Product convertFakeStoreDTOToProduct(FakeStoreProductDTO fakeStoreProductDTO) {
+        Product product = new Product();
+        product.setId(fakeStoreProductDTO.getId());
+        product.setTitle(fakeStoreProductDTO.getTitle());
+        product.setPrice(fakeStoreProductDTO.getPrice());
+        product.setImage(fakeStoreProductDTO.getImage());
+        product.setDescription(fakeStoreProductDTO.getDescription());
+
+        Category category = new Category();
+        category.setDescription(fakeStoreProductDTO.getCategory());
+        product.setCategory(category);
+
+        return product;
+    }
+
+    private FakeStoreProductDTO convertProductToFakeStoreProductDTO(Product product){
+        FakeStoreProductDTO fakeStoreProductDTO = new FakeStoreProductDTO();
+        fakeStoreProductDTO.setDescription(product.getDescription());
+        fakeStoreProductDTO.setTitle(product.getTitle());
+        fakeStoreProductDTO.setImage(product.getImage());
+        fakeStoreProductDTO.setPrice(product.getPrice());
+        fakeStoreProductDTO.setId(product.getId());
+        fakeStoreProductDTO.setCategory(product.getCategory().getDescription());
+
+        return fakeStoreProductDTO;
+    }
+
+    private FakeStoreProductRequestDTO convertProductToFakeStoreProductRequestDTO(Product product){
+        FakeStoreProductRequestDTO fakeStoreProductRequestDTO = new FakeStoreProductRequestDTO();
+        fakeStoreProductRequestDTO.setDescription(product.getDescription());
+        fakeStoreProductRequestDTO.setTitle(product.getTitle());
+        fakeStoreProductRequestDTO.setImage(product.getImage());
+        fakeStoreProductRequestDTO.setPrice(product.getPrice());
+        fakeStoreProductRequestDTO.setCategory(product.getCategory().getDescription());
+
+        return fakeStoreProductRequestDTO;
     }
 }
