@@ -1,4 +1,4 @@
-package com.dev.scaler.productservice.services;
+package com.dev.scaler.productservice.services.impl;
 
 import com.dev.scaler.productservice.client.fakestore.FakeStoreClient;
 import com.dev.scaler.productservice.client.fakestore.dto.FakeStoreProductDTO;
@@ -6,13 +6,14 @@ import com.dev.scaler.productservice.client.fakestore.dto.FakeStoreProductReques
 import com.dev.scaler.productservice.exceptions.NotFoundException;
 import com.dev.scaler.productservice.models.Category;
 import com.dev.scaler.productservice.models.Product;
+import com.dev.scaler.productservice.services.ProductService;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
-@Service
+@Service("fakeStoreProductService")
 public class FakeStoreProductService implements ProductService {
     private FakeStoreClient fakeStoreClient;
 
